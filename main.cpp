@@ -28,7 +28,8 @@ int main(){
 
     //in.open("../Data_0.5.k");
     in.open("../Data.k");
-    std::cout << "Opened file" << std::endl;
+    std::cout << "Opened file. Starting string count" << std::endl;
+
     for(int i = 0; i < 2; i++){
         in.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
     }
@@ -113,23 +114,6 @@ int main(){
             B(2,2*j  ) = N[3 * i + j](2);
             B(2,2*j+1) = N[3 * i + j](1);
         }
-        /*
-        B(0,2) = v3[1] - v1[1];
-        B(0,3) = 0;
-        B(1,2) = 0;
-        B(1,3) = v1[0] - v3[0];
-        B(2,2) = v1[0] - v3[0];
-        B(2,3) = v3[1] - v1[1];
-
-        B(0,4) = v1[1] - v2[1];
-        B(0,5) = 0;
-        B(1,4) = 0;
-        B(1,5) = v2[0] - v1[0];
-        B(2,4) = v2[0] - v1[0];
-        B(2,5) = v1[1] - v2[1];
-
-        B = B / (2 * S);
-        */
         Eigen::Matrix3d D;
         D << 1, nu / (1 - nu), 0,
         nu / (1 - nu), 1, 0,
@@ -217,12 +201,6 @@ int main(){
         Fglob.coeffRef(2*elements[i][2] + 1) += Floc(5);
     }
 
-#ifdef OUT_F
-    for(int i = 0; i < numnodes; i++){
-        std::cout << Fglob(2*i) << " " << Fglob(2*i + 1) << std::endl;
-    }
-#endif
-
     std::cout << "Adding boundary conditions: " << std::endl; 
 
     for(int i = 0; i < fixNodesX.size(); i++){
@@ -292,16 +270,6 @@ int main(){
         sigma[i](2) = sigmaloc(2);
     }
 
-    //for(int i = 0; i < numelements; i++){
-    //    if(sigma(3 * i + 2) >= 1e-3){
-    //        std::cout << sigma(3 * i + 2) << std::endl;
-    //    }
-    //}
-
-    //for(int i = 0; i < numelements; i++){
-    //    std::cout << sigma(3 * i) << " " << sigma(3 * i + 2) << std::endl;
-    //}
-
     Eigen::SparseMatrix<double> Cglob(numnodes, numnodes);
     Eigen::VectorXd Rglobxx(numnodes);
     Eigen::VectorXd Rglobyy(numnodes);
@@ -316,16 +284,6 @@ int main(){
         Eigen::Vector2d a = nodes[elements[i][1]] - nodes[elements[i][0]];
         Eigen::Vector2d b = nodes[elements[i][2]] - nodes[elements[i][0]];
 
-        //Eigen::Matrix4d A;
-        //A << a(0), a(1), 0,    0,
-        //     0,    0,    a(0), a(1),
-        //     b(0), b(1), 0,    0,
-        //     0,     0,    b(0), b(1);
-        //Eigen::Vector4d ans(1,0,0,1);
-        //Eigen::Vector4d perexMat = A.colPivHouseholderQr().solve(ans);
-        //Eigen::Matrix2d tmp;
-        //tmp << perexMat(0), perexMat(1), perexMat(2), perexMat(3);
-        //Eigen::Matrix2d jacob = tmp.inverse();
         Eigen::Matrix2d jacob; 
         jacob << a(0), b(0), a(1), b(1);
 
@@ -387,7 +345,6 @@ int main(){
 
     ldlt.compute(Cglob);
 
-    //Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> ldlt2(Cglob);
     Eigen::VectorXd sigmanewxx = ldlt.solve(Rglobxx);
     Eigen::VectorXd sigmanewyy = ldlt.solve(Rglobyy);
     Eigen::VectorXd sigmanewxy = ldlt.solve(Rglobxy);
@@ -398,9 +355,6 @@ int main(){
         if(nodes[i](1) == 0){
             double analyt = 0.5 * p * (2 + std::pow(1.0 / (nodes[i](0)),2) + 3 * std::pow(1.0 / (nodes[i](0)),4));
             maxeps = std::max(maxeps, std::abs((sigmanewyy(i) - analyt) / analyt));
-            /* if(std::abs((sigmanewyy(i) - analyt) / analyt) >= 0.1){
-                std::cout << sigmanewyy(i) << " " << analyt << std::endl;
-            } */
         }
     }
     
@@ -413,14 +367,8 @@ int main(){
             double analyt = 1.5 * p * (std::pow(1.0 / (nodes[i](0)),2) - std::pow(1.0 / (nodes[i](0)),4));
             if(analyt == 0){
                 maxeps = std::max(maxeps, std::abs(sigmanewxx(i)));
-                /* if(std::abs(sigmanewxx(i)) >= 0.1){
-                    std::cout << sigmanewxx(i) << " " << 0 << std::endl;
-                } */
             }else{
                 maxeps = std::max(maxeps, std::abs((sigmanewxx(i) - analyt) / analyt));
-                /* if(std::abs((sigmanewxx(i) - analyt) / analyt) >= 0.1){
-                    std::cout << nodes[i](0) << " " << sigmanewxx(i) << " " << analyt << std::endl;
-                } */
             }
         }
     }
@@ -432,9 +380,6 @@ int main(){
     for(int i = 0; i < numnodes; i++){
         if(nodes[i](1) == 0){
             maxeps = std::max(maxeps, std::abs(sigmanewxy(i)));
-            /* if(std::abs(sigmanewxy(i)) >= 0.1){
-                std::cout << sigmanewxy(i) << " " << 0 << std::endl;
-            } */
         }
     }
     
@@ -469,9 +414,6 @@ int main(){
     std::cout << "minsigmaxx: " << minsigmaxx << " maxsigmaxx: " << maxsigmaxx << std::endl;
     std::cout << "minsigmayy: " << minsigmayy << " maxsigmayy: " << maxsigmayy << std::endl;
     std::cout << "minsigmaxy: " << minsigmaxy << " maxsigmaxy: " << maxsigmaxy << std::endl;
-    //b = color <= 127 ? 255 - color * 2 : 0;
-    //g = color <= 127 ? color * 2 : 255 - (color - 127) * 2
-    //r = color <= 127 ? 0 : (color - 127) * 2;
     for(int i = 0; i < numnodes; i++){
         double colorx = std::abs(U(2*i) - minx) / std::abs(maxx - minx);
         double colory = std::abs(U(2*i+1) - miny) / std::abs(maxy - miny);
@@ -483,68 +425,6 @@ int main(){
 
     out.close();
 
-#ifdef OUT_COMPARE
-
-    std::vector<std::pair<double,double>> outputDataxx;
-    std::vector<std::pair<double,double>> outputDatayy;
-    std::vector<std::pair<double,double>> outputDataxy;
-
-    for(int i = 0; i < numnodes; i++){
-        if(nodes[i](1) == 0){
-            outputDataxx.push_back(std::make_pair(nodes[i](0),sigmanewxx(i)));
-            outputDatayy.push_back(std::make_pair(nodes[i](0),sigmanewyy(i)));
-            outputDataxy.push_back(std::make_pair(nodes[i](0),sigmanewxy(i)));
-            //out << nodes[i](0) << " " << sigmanewxx(i) <<  std::endl;//" " << analyt << std::endl;
-        }
-    }
-    
-    std::sort(outputDataxx.begin(),outputDataxx.end());
-    std::sort(outputDatayy.begin(),outputDatayy.end());
-    std::sort(outputDataxy.begin(),outputDataxy.end());
-    out.open("sigmaxx.txt");
-    for(auto& i : outputDataxx){
-        out << i.first << " " << i.second << std::endl;
-    }
-    out.close();
-    out.open("sigmayy.txt");
-    for(auto& i : outputDatayy){
-        out << i.first << " " << i.second << std::endl;
-    }
-    out.close();
-    out.open("sigmaxy.txt");
-    for(auto& i : outputDataxy){
-        out << i.first << " " << i.second << std::endl;
-    }
-
-    out.close();
-
-    out.open("analytxx.txt");
-
-    for(auto& i : outputDataxx){
-        double analyt = 1.5 * p * (std::pow(1.0 / (i.first),2) - std::pow(1.0 / (i.first),4));
-        out << i.first << " " << analyt << std::endl;
-    }
-
-     out.close();
-
-     out.open("analytyy.txt");
-
-    for(auto& i : outputDataxx){
-        double analyt = 0.5 * p * (2 + std::pow(1.0 / (i.first),2) + 3 * std::pow(1.0 / (i.first),4));
-        out << i.first << " " << analyt << std::endl;
-    }
-
-     out.close();
-
-     out.open("analytxy.txt");
-
-    for(auto& i : outputDataxx){
-        double analyt = 0;
-        out << i.first << " " << analyt << std::endl;
-    }
-
-     out.close();
-#endif
 #ifdef SMART_COMPARE
 
     std::ofstream outxx("sigmaxx.txt");
@@ -558,20 +438,6 @@ int main(){
         double valxx = 0;
 
         for(int j = 0; j < numelements; j++){
-            /* Eigen::Vector2d a = nodes[elements[j][1]] - nodes[elements[j][0]];
-            Eigen::Vector2d b = nodes[elements[j][2]] - nodes[elements[j][0]];
-
-            Eigen::Matrix2d jacob; 
-            jacob << a(0), b(0), a(1), b(1);
-
-            Eigen::Vector2d tmpP = jacob.inverse() * (point - nodes[elements[j][0]]);
-            if((tmpP(0) - 1) <= 1e-10 && tmpP(0) >= 1e-10 && (tmpP(1) - 1 - tmpP(0)) <= 1e-10 && tmpP(1) >= 1e-10){
-                counter++;
-                for(int k = 0; k < 3; k++){
-                    valxx += N[3 * j + k].dot(Eigen::Vector3d(1,point(0),point(1))) * sigmanewxx(elements[j][k]);
-                }
-                break;
-            } */
             Eigen::Vector2d a = nodes[elements[j][0]];
             Eigen::Vector2d b = nodes[elements[j][1]];
             Eigen::Vector2d c = nodes[elements[j][2]];
@@ -606,7 +472,6 @@ int main(){
     axx.close();
 #endif
 #ifdef OUT_BIS
-    //out.open("graph.txt");
     outxx.open("graphxx.txt");
     std::ofstream outyy("graphyy.txt");
     std::ofstream outxy("graphxy.txt");
@@ -621,23 +486,6 @@ int main(){
         double valxy = 0;
 
         for(int j = 0; j < numelements; j++){
-            /* Eigen::Vector2d a = nodes[elements[j][1]] - nodes[elements[j][0]];
-            Eigen::Vector2d b = nodes[elements[j][2]] - nodes[elements[j][0]];
-
-            Eigen::Matrix2d jacob; 
-            jacob << a(0), b(0), a(1), b(1);
-
-            Eigen::Vector2d tmpP = jacob.inverse() * (point - nodes[elements[j][0]]);
-            if((tmpP(0) - 1) <= 1e-10 && tmpP(0) >= 1e-10 && (tmpP(1) - 1 - tmpP(0)) <= 1e-10 && tmpP(1) >= 1e-10){
-                counter++;
-                for(int k = 0; k < 3; k++){
-                    valxx += N[3 * j + k].dot(Eigen::Vector3d(1,point(0),point(1))) * sigmanewxx(elements[j][k]);
-                    valyy += N[3 * j + k].dot(Eigen::Vector3d(1,point(0),point(1))) * sigmanewyy(elements[j][k]);
-                    valxy += N[3 * j + k].dot(Eigen::Vector3d(1,point(0),point(1))) * sigmanewxy(elements[j][k]);
-                }
-                break;
-            } */
-
             Eigen::Vector2d a = nodes[elements[j][0]];
             Eigen::Vector2d b = nodes[elements[j][1]];
             Eigen::Vector2d c = nodes[elements[j][2]];
@@ -672,7 +520,6 @@ int main(){
     outxx.close();
     outyy.close();
     outxy.close();
-    //out.close();
 #endif
 #endif
 
