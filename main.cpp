@@ -20,8 +20,8 @@ constexpr double E  = 1;
 constexpr double nu = 0.25;
 
 int main(int argc, char** argv){
-    if(argc < 2){
-        std::cout << "Not enough parameteres. Usage: " << argv[0] << " <mesh file>" << std::endl;
+    if(argc < 3){
+        std::cout << "Not enough parameteres. Usage: " << argv[0] << " <mesh file> <numpoints on graph>" << std::endl;
         return 0;
     }
     std::ifstream in;
@@ -609,9 +609,10 @@ int main(int argc, char** argv){
 
     Eigen::Vector2d s = {-10,-10};
     Eigen::Vector2d e = {10,10};
+    int numpoints = atoi(argv[2]);
     Eigen::Vector2d sm = e - s;
-    sm /= 1000;
-    for(int i = 1; i <= 1000; i++){
+    sm /= numpoints;
+    for(int i = 1; i <= numpoints; i++){
         Eigen::Vector2d point = sm * i + s;
         double valxx = 0;
         double valyy = 0;
