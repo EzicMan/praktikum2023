@@ -411,16 +411,18 @@ int main(int argc, char** argv){
                 double c1 = N[3 * i + j](2);
 
                 a1 = a1 + b1 * nodes[elements[i][0]](0) + c1 * nodes[elements[i][0]](1);
+                double b1tmp = b1;
                 b1 = b1 * jacob(0,0) + c1 * jacob(1,0);
-                c1 = b1 * jacob(0,1) + c1 * jacob(1,1);
+                c1 = b1tmp * jacob(0,1) + c1 * jacob(1,1);
 
                 double a2 = N[3 * i + k](0);
                 double b2 = N[3 * i + k](1);
                 double c2 = N[3 * i + k](2);
 
                 a2 = a2 + b2 * nodes[elements[i][0]](0) + c2 * nodes[elements[i][0]](1);
+                double b2tmp = b2;
                 b2 = b2 * jacob(0,0) + c2 * jacob(1,0);
-                c2 = b2 * jacob(0,1) + c2 * jacob(1,1);
+                c2 = b2tmp * jacob(0,1) + c2 * jacob(1,1);
 
                 Cloc(j,k) = jacob.determinant() / 24.0 * (4 * a1 * (3 * a2 + b2 + c2) + 4 * a2 * (b1 + c1) + 2 * b1 * b2 + b1 * c2 + b2 * c1 + 2 * c1 * c2);
             }
@@ -431,8 +433,9 @@ int main(int argc, char** argv){
             double c1 = N[3 * i + j](2);
 
             a1 = a1 + b1 * nodes[elements[i][0]](0) + c1 * nodes[elements[i][0]](1);
+            double b1tmp = b1;
             b1 = b1 * jacob(0,0) + c1 * jacob(1,0);
-            c1 = b1 * jacob(0,1) + c1 * jacob(1,1);
+            c1 = b1tmp * jacob(0,1) + c1 * jacob(1,1);
 
             Rloc(j) = jacob.determinant() * 1.0 / 6.0 * (3 * a1 + b1 + c1);
         }
@@ -448,8 +451,6 @@ int main(int argc, char** argv){
             Rglobxy(elements[i][j]) += sigma[i](2) * Rloc(j);
         }
     }
-
-    std::cout << Rglobxx(242) << " " << Rglobxx(316) << std::endl;
 
     ldlt.compute(Cglob);
 
@@ -553,6 +554,7 @@ int main(int argc, char** argv){
     }
 
     out.close();
+#endif
 
 #ifdef SMART_COMPARE
 
@@ -601,15 +603,16 @@ int main(int argc, char** argv){
     axx.close();
 #endif
 #ifdef OUT_BIS
-    outxx.open("graphxx.txt");
-    std::ofstream outyy("graphyy.txt");
-    std::ofstream outxy("graphxy.txt");
+    out.open(std::string(argv[1])+"_graph.txt");
+    //std::ofstream outyy("graphyy.txt");
+    //std::ofstream outxy("graphxy.txt");
 
-    e = {20,20};
-    e /= 500;
-    counter = 0;
-    for(int i = 1; i <= 500; i++){
-        Eigen::Vector2d point = e * i;
+    Eigen::Vector2d s = {-10,-10};
+    Eigen::Vector2d e = {10,10};
+    Eigen::Vector2d sm = e - s;
+    sm /= 1000;
+    for(int i = 1; i <= 1000; i++){
+        Eigen::Vector2d point = sm * i + s;
         double valxx = 0;
         double valyy = 0;
         double valxy = 0;
@@ -641,15 +644,13 @@ int main(int argc, char** argv){
             }
         }
 
-        outxx << point.norm() << " " << valxx << std::endl;
-        outyy << point.norm() << " " << valyy << std::endl;
-        outxy << point.norm() << " " << valxy << std::endl;
+        out << (point-s).norm() << " " << valxx << " " << valyy << " " << valxy << std::endl;
+        //outyy << point.norm() << " " << valyy << std::endl;
+        //outxy << point.norm() << " " << valxy << std::endl;
     }
-    std::cout << counter << std::endl;
-    outxx.close();
-    outyy.close();
-    outxy.close();
-#endif
+    out.close();
+    //outyy.close();
+    //outxy.close();
 #endif
 
     return 0;
