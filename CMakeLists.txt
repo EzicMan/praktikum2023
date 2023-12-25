@@ -9,12 +9,12 @@ set(APP_VERSION_MINOR 0)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_BUILD_TYPE Debug)
 
-#add_compile_definitions(CHECK_K)
+add_compile_definitions(CHECK_K)
 add_compile_definitions(OUT_SVTU)
 #add_compile_definitions(OUT_F)
 add_compile_definitions(OUT_SIGMA)
-add_compile_definitions(SMART_COMPARE)
-add_compile_definitions(OUT_BIS)
+#add_compile_definitions(SMART_COMPARE)
+#add_compile_definitions(OUT_BIS)
 
 set(APP_TARGET test)
 

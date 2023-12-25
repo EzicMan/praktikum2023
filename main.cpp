@@ -1,5 +1,6 @@
 #include <iostream>
 #include <limits>
+#include <string>
 #include <vector>
 #include <fstream>
 #include <cmath>
@@ -8,28 +9,80 @@
 #include <Eigen/Dense>
 #include <Eigen/SparseCholesky>
 
-constexpr int numnodes    = 13900;
-constexpr int numelements = 27307;
+//constexpr int numnodes    = 13900;
+//constexpr int numelements = 27307;
 
 //constexpr int numnodes    = 2366;
 //constexpr int numelements = 4185;
 
-constexpr double p  = 10;
-constexpr double E  = 100;
+constexpr double p  = -0.01;
+constexpr double E  = 1;
 constexpr double nu = 0.25;
 
-int main(){
+int main(int argc, char** argv){
+    if(argc < 2){
+        std::cout << "Not enough parameteres. Usage: " << argv[0] << " <mesh file>" << std::endl;
+        return 0;
+    }
     std::ifstream in;
+    std::vector<std::size_t> fixNodesX;
+    std::vector<std::size_t> fixNodesY;
+    in.open(argv[1]);
+    std::cout << "Opened file. Starting string count" << std::endl;
+
+    for(int i = 0; i < 2; i++){
+        in.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
+    }
+    std::string reading = "";
+    std::getline(in,reading);
+    int numnodes = 0;
+    while(reading[0] != '$'){
+        numnodes++;
+        std::getline(in,reading);
+    }
+
+    for(int i = 0; i < 3; i++){
+        in.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
+    }
+
+    std::getline(in,reading);
+    int numelements = 0;
+    while(reading[0] == ' '){
+        numelements++;
+        std::getline(in,reading);
+    }
+    
+    int numloads = 0;
+    while(reading.find("*BOUNDARY_SPC_SET") == std::string::npos){
+        if(reading.find("*LOAD_SEGMENT") != std::string::npos){
+            numloads++;
+        }
+        std::getline(in,reading);
+    }
+
+    for(int i = 0; i < 3; i++){
+        in.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
+    }
+
+    int temporary;
+    while(in >> temporary){
+        fixNodesX.push_back(temporary-1);
+        fixNodesY.push_back(temporary-1);
+    }
+    
+    in.close();
+
+    std::cout << "numnodes: " << numnodes << " numelements:" << numelements << " numloads: " << numloads << std::endl;
+
+
     std::vector<Eigen::Vector2d>          nodes(numnodes);
     std::vector<Eigen::Vector2d>          pOnNodes(numnodes, {0,0});
-    std::vector<std::size_t>              fixNodesX;
-    std::vector<std::size_t>              fixNodesY;
     std::vector<std::vector<std::size_t>> elements(numelements);
 
     //in.open("../Data_0.5.k");
-    in.open("../Data.k");
-    std::cout << "Opened file. Starting string count" << std::endl;
 
+    std::cout << "Reading data from file" << std::endl;
+    in.open(argv[1]);
     for(int i = 0; i < 2; i++){
         in.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
     }
@@ -48,14 +101,14 @@ int main(){
         nodes[nid-1] = v;
     }
     std::cout << "ymax: " << ymax << std::endl;
-    for(int i = 0; i < numnodes; i++){
-        if     (std::abs(nodes[i](0)) < std::numeric_limits<double>::min()) fixNodesX.push_back(i);
-        else if(std::abs(nodes[i](1)) < std::numeric_limits<double>::min()) fixNodesY.push_back(i);
+    // for(int i = 0; i < numnodes; i++){
+    //     if     (std::abs(nodes[i](0)) < std::numeric_limits<double>::min()) fixNodesX.push_back(i);
+    //     else if(std::abs(nodes[i](1)) < std::numeric_limits<double>::min()) fixNodesY.push_back(i);
 
-        if(std::abs(nodes[i](1) - ymax) < std::numeric_limits<double>::min()) {
-            pOnNodes[i](1) = p;
-        }
-    }
+    //     if(std::abs(nodes[i](1) - ymax) < std::numeric_limits<double>::min()) {
+    //         pOnNodes[i](1) = p;
+    //     }
+    // }
 
     std::cout << fixNodesX.size() + fixNodesY.size() << std::endl;
 
@@ -71,6 +124,19 @@ int main(){
         elements[eid-1].push_back(n1-1);
         elements[eid-1].push_back(n2-1);
         elements[eid-1].push_back(n3-1);
+    }
+    in.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
+
+    for(int i = 0; i < numloads; i++){
+        in.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
+        double temp;
+        int node1, node2;
+        in >> temp >> temp >> temp >> node1 >> node2;
+        pOnNodes[node1-1](1) = p;
+        pOnNodes[node2-1](1) = p;
+        for(int i = 0; i < 4; i++){
+            in.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
+        }
     }
 
     in.close();
@@ -167,31 +233,56 @@ int main(){
         if(n1 + n2 + n3 < 2) continue;
         if(n1 + n2 + n3 == 3){
             std::cout << "Something weird is going on with P" << std::endl;
-        }
+        }   
         Eigen::Vector<double, 6> Floc;
-        Floc(0) = pOnNodes[elements[i][0]][0];
-        Floc(1) = pOnNodes[elements[i][0]][1];
-        Floc(2) = pOnNodes[elements[i][1]][0]; 
-        Floc(3) = pOnNodes[elements[i][1]][1]; 
-        Floc(4) = pOnNodes[elements[i][2]][0]; 
-        Floc(5) = pOnNodes[elements[i][2]][1];
-        double xi1;
-        double xi;
+        Floc(0) = p;
+        Floc(1) = p;
+        Floc(2) = p; 
+        Floc(3) = p; 
+        Floc(4) = p; 
+        Floc(5) = p;
+        Eigen::Vector2d p1;
+        Eigen::Vector2d p2;
+        Eigen::Vector2d p3;
         if(n1 && n2){
-            xi = nodes[elements[i][0]](0);
-            xi1 = nodes[elements[i][1]](0);
+            p1 = nodes[elements[i][0]];
+            p2 = nodes[elements[i][1]];
+            p3 = nodes[elements[i][2]];
         }else if(n1 && n3){
-            xi = nodes[elements[i][0]](0);
-            xi1 = nodes[elements[i][2]](0);
+            p1 = nodes[elements[i][0]];
+            p2 = nodes[elements[i][2]];
+            p3 = nodes[elements[i][1]];
         }else if(n2 && n3){
-            xi = nodes[elements[i][1]](0);
-            xi1 = nodes[elements[i][2]](0);
+            p1 = nodes[elements[i][1]];
+            p2 = nodes[elements[i][2]];
+            p3 = nodes[elements[i][0]];
         }
 
-        for(int j = 0; j < 3; j++){
-            Floc(2*j+1) *= (ymax * N[3 * i + j](2) + N[3 * i + j](0)) * std::abs(xi1 - xi) +
-            N[3 * i + j](1) * 0.5 * std::abs(xi1 - xi) * (xi1 + xi);
+        //for(int j = 0; j < 3; j++){
+        //    Floc(2*j+1) *= (ymax * N[3 * i + j](2) + N[3 * i + j](0)) * std::abs(xi1 - xi) +
+        //    N[3 * i + j](1) * 0.5 * std::abs(xi1 - xi) * (xi1 + xi);
+        //}
+        if(p1(0) > p2(0)){
+            std::swap(p1,p2);
         }
+        Eigen::Vector2d normal({(p1-p2)(1),-(p1-p2)(0)});
+        if(normal.dot(p3-p1) > 0){
+            normal = -normal;
+        }
+
+        normal.normalize();
+        
+        double k2 = (p2(1) - p1(1))/(p2(0) - p1(0));
+        double k1 = p1(1) - k2 * p1(0);
+
+        for(int j = 0; j < 3; j++){
+            double a = N[3*i+j](0);
+            double b = N[3*i+j](1);
+            double c = N[3*i+j](2);
+            Floc(2*j)   *= -0.5 * std::sqrt(k2*k2 + 1) * (p1(0) - p2(0)) * (2*a+b*(p1(0) + p2(0)) + 2 * c * k1 + c * k2 * (p1(0) + p2(0))) * normal(0);
+            Floc(2*j+1) *= -0.5 * std::sqrt(k2*k2 + 1) * (p1(0) - p2(0)) * (2*a+b*(p1(0) + p2(0)) + 2 * c * k1 + c * k2 * (p1(0) + p2(0))) * normal(1);
+        }
+
         
         Fglob.coeffRef(2*elements[i][0]    ) += Floc(0);
         Fglob.coeffRef(2*elements[i][0] + 1) += Floc(1);
@@ -269,6 +360,21 @@ int main(){
         sigma[i](1) = sigmaloc(1);
         sigma[i](2) = sigmaloc(2);
     }
+    /* double minsigmaxx=0,maxsigmaxx=0,minsigmayy=0,maxsigmayy=0,minsigmaxy=0,maxsigmaxy=0;
+    for(int i = 0; i < numnodes; i++){
+        minsigmaxx = std::min(minsigmaxx,sigma[i](0));
+        maxsigmaxx = std::max(maxsigmaxx,sigma[i](0));
+
+        minsigmayy = std::min(minsigmayy,sigma[i](1));
+        maxsigmayy = std::max(maxsigmayy,sigma[i](1));
+
+        minsigmaxy = std::min(minsigmaxy,sigma[i](2));
+        maxsigmaxy = std::max(maxsigmaxy,sigma[i](2));
+    }
+    std::cout << "minsigmaxx: " << minsigmaxx << " maxsigmaxx: " << maxsigmaxx << std::endl;
+    std::cout << "minsigmayy: " << minsigmayy << " maxsigmayy: " << maxsigmayy << std::endl;
+    std::cout << "minsigmaxy: " << minsigmaxy << " maxsigmaxy: " << maxsigmaxy << std::endl; */
+
 
     Eigen::SparseMatrix<double> Cglob(numnodes, numnodes);
     Eigen::VectorXd Rglobxx(numnodes);
@@ -343,13 +449,35 @@ int main(){
         }
     }
 
+    std::cout << Rglobxx(242) << " " << Rglobxx(316) << std::endl;
+
     ldlt.compute(Cglob);
 
     Eigen::VectorXd sigmanewxx = ldlt.solve(Rglobxx);
     Eigen::VectorXd sigmanewyy = ldlt.solve(Rglobyy);
     Eigen::VectorXd sigmanewxy = ldlt.solve(Rglobxy);
 
-    double maxeps = 0;
+    Eigen::Vector3d sigmaLocal({0,0,0});
+    constexpr double fullvolume = 3.1415926 * 100;
+    double volume = 0;
+    for(int i = 0; i < numelements; i++){
+        Eigen::Vector2d a = nodes[elements[i][1]] - nodes[elements[i][0]];
+        Eigen::Vector2d b = nodes[elements[i][2]] - nodes[elements[i][0]];
+
+        Eigen::Matrix2d jacob; 
+        jacob << a(0), b(0), a(1), b(1);
+
+        volume += jacob.determinant() * 0.5;
+
+        sigmaLocal(0) += sigma[i](0);
+        sigmaLocal(1) += sigma[i](1);
+        sigmaLocal(2) += sigma[i](2);
+    }
+    sigmaLocal /= fullvolume;
+    double porosity = (fullvolume - volume) / fullvolume;
+    std::cout << (sigmaLocal(0) / p + porosity) << " " << (sigmaLocal(1) / p + porosity) << " " << (sigmaLocal(2) / p) << std::endl;
+    std::cout << porosity << std::endl;
+    /* double maxeps = 0;
 
     for(int i = 0; i < numnodes; i++){
         if(nodes[i](1) == 0){
@@ -383,7 +511,7 @@ int main(){
         }
     }
     
-    std::cout << "max error on xy is " << maxeps*100.0 << "%" << std::endl;
+    std::cout << "max error on xy is " << maxeps*100.0 << "%" << std::endl; */
 
 #endif
 
@@ -417,9 +545,10 @@ int main(){
     for(int i = 0; i < numnodes; i++){
         double colorx = std::abs(U(2*i) - minx) / std::abs(maxx - minx);
         double colory = std::abs(U(2*i+1) - miny) / std::abs(maxy - miny);
-        double colorsigmaxx = std::abs(sigmanewxx(i) - minsigmaxx) / std::abs(maxsigmaxx - minsigmaxx);
-        double colorsigmayy = std::abs(sigmanewyy(i) - minsigmayy) / std::abs(maxsigmayy - minsigmayy);
-        double colorsigmaxy = std::abs(sigmanewxy(i) - minsigmaxy) / std::abs(maxsigmaxy - minsigmaxy);
+        double colorsigmaxx, colorsigmayy, colorsigmaxy;
+        colorsigmaxx = std::abs(sigmanewxx(i) - minsigmaxx) / std::abs(maxsigmaxx - minsigmaxx);
+        colorsigmayy = std::abs(sigmanewyy(i) - minsigmayy) / std::abs(maxsigmayy - minsigmayy);
+        colorsigmaxy = std::abs(sigmanewxy(i) - minsigmaxy) / std::abs(maxsigmaxy - minsigmaxy);
         out << colorx << " " << colory << " " << colorsigmaxx << " " << colorsigmayy << " " << colorsigmaxy << std::endl;
     }
 
