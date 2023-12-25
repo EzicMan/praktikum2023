@@ -17,7 +17,7 @@
 
 constexpr double p  = -0.01;
 constexpr double E  = 1;
-constexpr double nu = 0.25;
+constexpr double nu = 0.3;
 
 int main(int argc, char** argv){
     if(argc < 3){
